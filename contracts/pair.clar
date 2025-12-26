@@ -1,6 +1,11 @@
 ;; pair.clar
 ;; Constant-product AMM pair contract with embedded minimal LP token interface.
 ;; NOTE: This implementation is educational. Audit before mainnet use.
+;; LP integration: this contract currently keeps internal LP accounting.
+;; There's a separate `contracts/lp-token.clar` included (minimal SIP-like token).
+;; To integrate external LP token, replace internal mint/burn calls with
+;; `contract-call?` to the deployed LP token `mint`/`burn` functions,
+;; and restrict minter permissions on the LP token contract.
 
 (define-data-var reserve-a uint u0)
 (define-data-var reserve-b uint u0)
