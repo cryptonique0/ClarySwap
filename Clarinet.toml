@@ -1,5 +1,5 @@
 name = "claryswap-amm"
-version = "0.1.0"
+version = "0.1.1"
 chain_binary = "stacks-node"
 network = "localnet"
 name = "claryswap-amm"
