@@ -30,3 +30,7 @@ Local quickstart:
 3) Clarinet:
    cargo install --locked clarinet
    clarinet test
+
+LP token
+-------
+This scaffold includes a minimal LP token contract at `contracts/lp-token.clar`. It exposes `mint` and `burn` (currently unrestricted) for development and testing. Lock down mint/burn permissions before production.
