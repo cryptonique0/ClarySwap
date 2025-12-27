@@ -13,7 +13,9 @@
     "next": "14.x",
     "react": "18.x",
     "react-dom": "18.x",
-    "@stacks/connect": "^7.6.0"
+    "@stacks/connect": "^7.6.0",
+    "@stacks/transactions": "^6.13.0",
+    "@stacks/network": "^6.13.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
