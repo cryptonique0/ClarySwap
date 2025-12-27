@@ -1,4 +1,28 @@
 name = "claryswap-amm"
-version = "0.1.1"
+version = "0.2.0"
 chain_binary = "stacks-node"
 network = "localnet"
+
+[contracts.factory]
+path = "contracts/factory.clar"
+
+[contracts.pair]
+path = "contracts/pair.clar"
+
+[contracts.pair-v2]
+path = "contracts/pair-v2.clar"
+
+[contracts.router]
+path = "contracts/router.clar"
+
+[contracts.lp-token]
+path = "contracts/lp-token.clar"
+
+[contracts.sip010-token]
+path = "contracts/sip010-token.clar"
+
+[contracts.faucet]
+path = "contracts/faucet.clar"
+
+[contracts.analytics]
+path = "contracts/analytics.clar"

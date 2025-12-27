@@ -5,10 +5,22 @@ build
 .DS_Store
 clarinet-report
 clarinet-output
-node_modules
-.next
-dist
-build
-.DS_Store
-clarinet-report
-clarinet-output
+
+# Binary and build artifacts
+*.tar.gz
+claryswap
+claryswap.pub
+
+# Lock files
+frontend/package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
