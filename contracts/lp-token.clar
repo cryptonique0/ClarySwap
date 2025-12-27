@@ -7,6 +7,10 @@
 (define-map balances (tuple (owner principal)) (tuple (balance uint)))
 (define-map allowances (tuple (owner principal) (spender principal)) (tuple (amount uint)))
 
+;; Minter control
+(define-data-var minter principal 'ST000000000000000000002AMM)
+(define-data-var minter-set bool false)
+
 (define-read-only (name) (ok (buff "Clary LP Token")))
 (define-read-only (symbol) (ok (buff "CLP")))
 (define-read-only (decimals) (ok u6))
@@ -64,24 +68,42 @@
       none (err (err "insufficient-allowance")))))
 
 ;; Mint: increases total-supply and recipient balance
+;; Only the designated minter can mint
+(define-public (set-minter (m principal))
+  (let ((is-set (var-get minter-set)))
+    (if (is-eq is-set false)
+      (begin
+        (var-set minter m)
+        (var-set minter-set true)
+        (ok true))
+      (if (is-eq tx-sender (var-get minter))
+        (begin (var-set minter m) (ok true))
+        (err (err "unauthorized"))))))
+
 (define-public (mint (to principal) (amount uint))
-  (var-set total-supply (+ (var-get total-supply) amount))
-  (match (map-get? balances (tuple (owner to)))
-    b
-      (map-set balances (tuple (owner to)) (tuple (balance (+ (get balance b) amount))))
-    none
-      (map-set balances (tuple (owner to)) (tuple (balance amount))))
-  (ok true))
+  (if (is-eq tx-sender (var-get minter))
+    (begin
+      (var-set total-supply (+ (var-get total-supply) amount))
+      (match (map-get? balances (tuple (owner to)))
+        b
+          (map-set balances (tuple (owner to)) (tuple (balance (+ (get balance b) amount))))
+        none
+          (map-set balances (tuple (owner to)) (tuple (balance amount))))
+      (ok true))
+    (err (err "unauthorized"))))
 
 ;; Burn: decreases total-supply and holder balance
+;; Only the minter can burn (burning will be requested by pair contract)
 (define-public (burn (from principal) (amount uint))
-  (match (map-get? balances (tuple (owner from)))
-    b
-      (let ((current (get balance b)) (total (var-get total-supply)))
-        (if (< current amount)
-          (err (err "insufficient-balance"))
-          (begin
-            (map-set balances (tuple (owner from)) (tuple (balance (- current amount))))
-            (var-set total-supply (- total amount))
-            (ok true))))
-    none (err (err "insufficient-balance"))))
+  (if (is-eq tx-sender (var-get minter))
+    (match (map-get? balances (tuple (owner from)))
+      b
+        (let ((current (get balance b)) (total (var-get total-supply)))
+          (if (< current amount)
+            (err (err "insufficient-balance"))
+            (begin
+              (map-set balances (tuple (owner from)) (tuple (balance (- current amount))))
+              (var-set total-supply (- total amount))
+              (ok true))))
+      none (err (err "insufficient-balance")))
+    (err (err "unauthorized"))))

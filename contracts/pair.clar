@@ -1,4 +1,145 @@
 ;; pair.clar
+;; Constant-product AMM pair contract that delegates LP mint/burn to an external LP token contract.
+;; Owner can set the `lp-token` principal once (or later if owner calls).
+;; NOTE: This is a scaffold for development and testing. Audit before production.
+
+;; Owner of this pair (set on initialize)
+(define-data-var owner principal 'ST000000000000000000002AMM)
+
+;; LP token contract principal (set by owner via `set-lp-token`)
+(define-data-var lp-token principal 'ST000000000000000000002AMM)
+
+;; Reserves and LP total tracked locally; token balances are maintained in LP token contract.
+(define-data-var reserve-a uint u0)
+(define-data-var reserve-b uint u0)
+(define-data-var total-lp uint u0)
+
+;; Fee settings: 0.3% fee (997/1000)
+(define-constant FEE_NUM u997)
+(define-constant FEE_DEN u1000)
+
+;; --- Read-only helpers ---
+(define-read-only (get-reserves)
+  (ok (tuple (reserve-a (var-get reserve-a)) (reserve-b (var-get reserve-b)))))
+
+(define-read-only (get-lp-token)
+  (ok (var-get lp-token)))
+
+(define-read-only (get-owner)
+  (ok (var-get owner)))
+
+(define-read-only (total-supply)
+  (ok (var-get total-lp)))
+
+;; --- Owner controls ---
+(define-public (set-lp-token (token principal))
+  (begin
+    (if (is-eq tx-sender (var-get owner))
+      (begin
+        (var-set lp-token token)
+        (ok true))
+      (err (err "unauthorized")))))
+
+;; --- Internal math helpers ---
+(define-private (min (a uint) (b uint)) (if (< a b) a b))
+
+;; Compute output amount using constant-product and fee
+(define-private (get-amount-out (amount-in uint) (reserve-in uint) (reserve-out uint))
+  (if (or (is-eq amount-in u0) (is-eq reserve-in u0) (is-eq reserve-out u0))
+    (err (err "invalid-input"))
+    (let ((amount-in-with-fee (/ (* amount-in FEE_NUM) FEE_DEN)))
+      (let ((numerator (* amount-in-with-fee reserve-out))
+            (denom (+ reserve-in amount-in-with-fee)))
+        (ok (/ numerator denom))))))
+
+;; --- Pool lifecycle: initialize / mint / burn / swap ---
+
+;; Initialize pool by first liquidity provider. Sets owner to initializer.
+(define-public (initialize (amount-a uint) (amount-b uint))
+  (if (or (is-eq (var-get reserve-a) u0) (is-eq (var-get reserve-b) u0))
+    (if (or (is-eq amount-a u0) (is-eq amount-b u0))
+      (err (err "zero-amount"))
+      (let ((initial-lp (if (> amount-a amount-b) amount-b amount-a)))
+        (var-set reserve-a amount-a)
+        (var-set reserve-b amount-b)
+        (var-set total-lp initial-lp)
+        (var-set owner tx-sender)
+        ;; Mint LP tokens to initializer via external LP token if set
+        (match (contract-call? (var-get lp-token) mint tx-sender initial-lp)
+          res (ok initial-lp)
+          err (ok initial-lp))))
+    (err (err "already-initialized"))))
+
+;; Add liquidity: mint LP proportionally. Caller must transfer tokens to the pair beforehand via SIP-010 transfers.
+(define-public (mint-liquidity (amount-a uint) (amount-b uint))
+  (let ((reserve-a (var-get reserve-a))
+        (reserve-b (var-get reserve-b))
+        (total (var-get total-lp)))
+    (if (or (is-eq reserve-a u0) (is-eq reserve-b u0))
+      (err (err "pool-not-initialized"))
+      (let ((lp-from-a (/ (* amount-a total) reserve-a))
+            (lp-from-b (/ (* amount-b total) reserve-b))
+            (to-mint (min (/ (* amount-a total) reserve-a) (/ (* amount-b total) reserve-b))))
+        (if (is-eq to-mint u0)
+          (err (err "zero-liquidity"))
+          (begin
+            (var-set reserve-a (+ reserve-a amount-a))
+            (var-set reserve-b (+ reserve-b amount-b))
+            (var-set total-lp (+ total to-mint))
+            ;; Call external LP token mint
+            (match (contract-call? (var-get lp-token) mint tx-sender to-mint)
+              res (ok to-mint)
+              err (err err)))))))
+
+;; Remove liquidity: burn LP via LP token contract and return corresponding amounts.
+(define-public (burn-liquidity (lp-amount uint) (to principal))
+  (let ((reserve-a (var-get reserve-a))
+        (reserve-b (var-get reserve-b))
+        (total (var-get total-lp)))
+    (if (or (is-eq total u0) (is-eq lp-amount u0))
+      (err (err "invalid-burn"))
+      (let ((amount-a (/ (* lp-amount reserve-a) total))
+            (amount-b (/ (* lp-amount reserve-b) total)))
+        ;; Burn LP tokens from caller (caller must have approved or use transfer-from pattern); pair will call burn on LP token
+        (match (contract-call? (var-get lp-token) burn tx-sender lp-amount)
+          res
+            (begin
+              (var-set reserve-a (- reserve-a amount-a))
+              (var-set reserve-b (- reserve-b amount-b))
+              (var-set total-lp (- total lp-amount))
+              ;; In real implementation, transfer tokens to `to` via SIP-010 transfer calls
+              (ok (tuple (amount-a amount-a) (amount-b amount-b))))
+          err (err err))))))
+
+;; Swap A -> B
+(define-public (swap-a-for-b (amount-in uint) (min-amount-out uint))
+  (let ((reserve-a (var-get reserve-a))
+        (reserve-b (var-get reserve-b)))
+    (match (get-amount-out amount-in reserve-a reserve-b)
+      out
+        (if (< out min-amount-out)
+          (err (err "slippage"))
+          (begin
+            (var-set reserve-a (+ reserve-a amount-in))
+            (var-set reserve-b (- reserve-b out))
+            ;; In real implementation, perform SIP-010 transfers: take `amount-in` from caller and send `out` to caller
+            (ok out)))
+      err (err err))))
+
+;; Swap B -> A
+(define-public (swap-b-for-a (amount-in uint) (min-amount-out uint))
+  (let ((reserve-a (var-get reserve-a))
+        (reserve-b (var-get reserve-b)))
+    (match (get-amount-out amount-in reserve-b reserve-a)
+      out
+        (if (< out min-amount-out)
+          (err (err "slippage"))
+          (begin
+            (var-set reserve-b (+ reserve-b amount-in))
+            (var-set reserve-a (- reserve-a out))
+            (ok out)))
+      err (err err))))
+;; pair.clar
 ;; Constant-product AMM pair contract with embedded minimal LP token interface.
 ;; NOTE: This implementation is educational. Audit before mainnet use.
 ;; LP integration: this contract currently keeps internal LP accounting.
