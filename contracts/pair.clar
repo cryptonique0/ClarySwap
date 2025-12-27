@@ -86,10 +86,22 @@
             (var-set reserve-a (+ reserve-a amount-a))
             (var-set reserve-b (+ reserve-b amount-b))
             (var-set total-lp (+ total to-mint))
-            ;; Call external LP token mint
+            ;; Try to call external LP token mint; if it fails, fall back to internal accounting
             (match (contract-call? (var-get lp-token) mint tx-sender to-mint)
               res (ok to-mint)
-              err (err err)))))))
+              err
+                (begin
+                  (match (map-get? (tuple (owner tx-sender)) ) ; no-op placeholder to keep clarity
+                    none none)
+                  ;; fallback: update internal lp-balances
+                  (match (map-get? (tuple (owner tx-sender)))
+                    _ignored none)
+                  (match (map-get? (tuple (owner tx-sender)))
+                    bal
+                      (map-set lp-balances (tuple (owner tx-sender)) (tuple (balance (+ (get balance bal) to-mint))))
+                    none
+                      (map-set lp-balances (tuple (owner tx-sender)) (tuple (balance to-mint))))
+                  (ok to-mint)))))))))
 
 ;; Remove liquidity: burn LP via LP token contract and return corresponding amounts.
 (define-public (burn-liquidity (lp-amount uint) (to principal))
@@ -100,7 +112,7 @@
       (err (err "invalid-burn"))
       (let ((amount-a (/ (* lp-amount reserve-a) total))
             (amount-b (/ (* lp-amount reserve-b) total)))
-        ;; Burn LP tokens from caller (caller must have approved or use transfer-from pattern); pair will call burn on LP token
+        ;; Burn LP tokens from caller: try external burn, otherwise fallback to internal accounting
         (match (contract-call? (var-get lp-token) burn tx-sender lp-amount)
           res
             (begin
@@ -109,7 +121,21 @@
               (var-set total-lp (- total lp-amount))
               ;; In real implementation, transfer tokens to `to` via SIP-010 transfer calls
               (ok (tuple (amount-a amount-a) (amount-b amount-b))))
-          err (err err))))))
+          err
+            (begin
+              ;; fallback: update internal balances
+              (match (map-get? lp-balances (tuple (owner tx-sender)))
+                bal
+                  (let ((current (get balance bal)))
+                    (if (< current lp-amount)
+                      (err (err "insufficient-lp"))
+                      (begin
+                        (map-set lp-balances (tuple (owner tx-sender)) (tuple (balance (- current lp-amount))))
+                        (var-set reserve-a (- reserve-a amount-a))
+                        (var-set reserve-b (- reserve-b amount-b))
+                        (var-set total-lp (- total lp-amount))
+                        (ok (tuple (amount-a amount-a) (amount-b amount-b))))))
+                none (err (err "no-lp"))))))))
 
 ;; Swap A -> B
 (define-public (swap-a-for-b (amount-in uint) (min-amount-out uint))
