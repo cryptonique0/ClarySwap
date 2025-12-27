@@ -1,6 +1,18 @@
-# ClarySwap - Stacks AMM MVP
+# ClarySwap - Stacks AMM DEX
 
-A decentralized exchange (DEX) built on Stacks blockchain using constant-product AMM (Automated Market Maker) model.
+A fully-featured decentralized exchange (DEX) built on Stacks blockchain using constant-product AMM (x * y = k) model with multi-hop routing, wallet integration, and advanced trading features.
+
+## ✨ Features
+
+- **🔄 Multi-hop Routing**: Optimized swap paths through intermediate tokens (A → B → C)
+- **💰 Liquidity Pools**: Add/remove liquidity with automatic LP token minting
+- **🛡️ Slippage Protection**: Configurable slippage tolerance (0-5%)
+- **⏰ Deadline Controls**: Transaction expiry protection (1-120 minutes)
+- **💱 Real-time Quotes**: Price impact calculation with 0.3% fee display
+- **🔗 Wallet Integration**: Connect with Leather or Hiro Wallet
+- **📊 Price Impact Display**: See exactly how your trade affects the pool
+- **🎨 Dark Theme UI**: Modern, responsive interface
+- **🧪 SIP-010 Support**: Full integration with Stacks fungible token standard
 
 ## 🏗️ Project Structure
 
@@ -24,27 +36,40 @@ ClarySwap/
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ and pnpm
-- Rust & Cargo (for Clarinet)
+- **Node.js 18+** and **pnpm**
+- **Clarinet** ([installation guide](https://github.com/hirosystems/clarinet))
+- **Stacks Wallet** (Leather or Hiro Wallet browser extension)
 
-### 1. Install Clarinet
+### 1. Clone and Setup
 ```bash
-cargo install --locked clarinet
+git clone https://github.com/cryptonique0/ClarySwap.git
+cd ClarySwap
 ```
 
-### 2. Run Contract Tests
+### 2. Test Smart Contracts
 ```bash
-clarinet test
+clarinet check  # Verify contract syntax
+clarinet test   # Run test suite
 ```
 
-### 3. Start Frontend Development Server
+### 3. Launch Frontend
 ```bash
 cd frontend
 pnpm install
 pnpm dev
 ```
 
-The frontend will be available at http://localhost:3000
+🌐 Open http://localhost:3000 and connect your Stacks wallet to start trading!
+
+### 4. Deploy Contracts (Optional)
+```bash
+# Deploy to testnet
+./scripts/deploy.sh
+
+# Or manually
+clarinet deployments generate --testnet
+clarinet deployments apply -p deployments/default.testnet-plan.yaml
+```
 
 ## 📋 Contract Overview
 
@@ -134,21 +159,60 @@ clarinet test
 
 ## 🛠️ Tech Stack
 
-- **Smart Contracts**: Clarity
-- **Testing**: Clarinet
-- **Frontend**: Next.js 14, React 18, TypeScript
-- **Wallet Integration**: @stacks/connect
-- **Blockchain**: Stacks
+### Blockchain Layer
+- **Smart Contracts**: Clarity (Stacks blockchain)
+- **Token Standard**: SIP-010 (Fungible Token)
+- **Testing Framework**: Clarinet
+- **Network**: Stacks Mainnet/Testnet
+
+### Frontend Layer
+- **Framework**: Next.js 14.x
+- **UI Library**: React 18.x
+- **Language**: TypeScript 5.x
+- **Wallet SDK**: @stacks/connect ^7.6.0
+- **Blockchain SDK**: @stacks/transactions ^6.13.0, @stacks/network ^6.13.0
+- **Package Manager**: pnpm
+
+### Development Tools
+- **CI/CD**: GitHub Actions
+- **Type Checking**: TypeScript strict mode
+- **Code Quality**: ESLint, Prettier (via Biome)
+- **Deployment**: Automated via scripts/deploy.sh
 
 ## 📝 License
 
 Educational use only. Audit before production deployment.
 
+## 🚧 Roadmap
+
+Completed ✅:
+- ✅ Constant-product AMM implementation
+- ✅ Multi-hop routing (swap-two-hop)
+- ✅ Wallet integration (@stacks/connect)
+- ✅ Slippage & deadline controls
+- ✅ Real-time price quotes
+- ✅ SIP-010 token support
+- ✅ Deployment automation
+
+Planned 🔜:
+- 🔜 Enhanced analytics dashboard
+- 🔜 Price oracle integration
+- 🔜 Governance features (DAO voting)
+- 🔜 Farming/staking rewards
+- 🔜 Advanced charting
+- 🔜 Transaction history
+
 ## 🤝 Contributing
 
-This is an MVP scaffold. Contributions welcome for:
-- Enhanced test coverage
-- Frontend wallet integration
-- Multi-hop routing
-- Price oracle integration
-- Governance features
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 🔗 Links
+
+- **Repository**: https://github.com/cryptonique0/ClarySwap
+- **Stacks Docs**: https://docs.stacks.co
+- **Clarinet**: https://github.com/hirosystems/clarinet
