@@ -3,29 +3,33 @@
 set -e
 
 NETWORK=${1:-testnet}
-DEPLOYER=${2:-deployer}
 
-echo "Deploying ClarySwap contracts to $NETWORK..."
+echo "🚀 Deploying ClarySwap contracts to $NETWORK..."
+echo ""
 
-# Deploy SIP-010 test token
-echo "1/5 Deploying sip010-token..."
-clarinet deployments generate --testnet --no-batch --manifest Clarinet.toml
+# Check if clarinet is available
+if ! command -v clarinet &> /dev/null; then
+    echo "❌ Clarinet not found. Please install it first:"
+    echo "   cargo install clarinet --locked"
+    echo "   OR download from: https://github.com/hirosystems/clarinet/releases"
+    exit 1
+fi
 
-# Deploy factory
-echo "2/5 Deploying factory..."
-clarinet deployments apply --manifest Clarinet.toml
+# Generate deployment plan
+echo "📝 Generating deployment plan for $NETWORK..."
+if [ "$NETWORK" = "mainnet" ]; then
+    clarinet deployments generate --mainnet
+else
+    clarinet deployments generate --testnet
+fi
 
-# Deploy LP token
-echo "3/5 Deploying lp-token..."
-# (Automated via Clarinet deployment plan)
-
-# Deploy pair
-echo "4/5 Deploying pair..."
-# (Automated via Clarinet deployment plan)
-
-# Deploy router
-echo "5/5 Deploying router..."
-# (Automated via Clarinet deployment plan)
-
-echo "✅ Deployment complete!"
-echo "Update frontend/public/tokens.json with deployed contract addresses."
+echo ""
+echo "📋 Deployment plan generated in: deployments/default.$NETWORK-plan.yaml"
+echo ""
+echo "To proceed with deployment:"
+echo "1. Review the deployment plan"
+echo "2. Ensure you have STX in your deployer wallet"
+echo "3. Run: clarinet deployments apply -p deployments/default.$NETWORK-plan.yaml"
+echo ""
+echo "For testnet STX faucet: https://explorer.hiro.so/sandbox/faucet?chain=testnet"
+echo ""

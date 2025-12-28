@@ -24,3 +24,14 @@ yarn.lock
 # IDE
 .vscode/
 .idea/
+
+# Deployment secrets
+settings/Testnet.toml
+settings/Mainnet.toml
+wallet.json
+*.pem
+*.key
+
+# Deployment artifacts
+deployments/*.yaml
+deployments/*.json

@@ -1,7 +1,12 @@
+[project]
 name = "claryswap-amm"
 version = "0.2.0"
-chain_binary = "stacks-node"
-network = "localnet"
+authors = ["ClarySwap Team"]
+description = "Decentralized AMM exchange on Stacks"
+telemetry = false
+
+[project.requirements]
+clarinet = "2.0"
 
 [contracts.factory]
 path = "contracts/factory.clar"
